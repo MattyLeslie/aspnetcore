@@ -175,12 +175,28 @@ internal sealed class SpaProxyLaunchManager : IDisposable
             var space = _options.LaunchCommand.IndexOf(' ');
             var command = _options.LaunchCommand[0..space];
             var arguments = _options.LaunchCommand[++space..];
+            var WorkingDirectory = Path.Combine(AppContext.BaseDirectory, _options.WorkingDirectory);
+            // if (OperatingSystem.IsWindows() && !Path.HasExtension(command))
+            // {
+            //     // On windows we transform npm/yarn to npm.cmd/yarn.cmd so that the command
+            //     // can actually be found when we start the process. This is overridable if
+            //     // necessary by explicitly setting up the extension on the command.
+            //     command = $"{command}.cmd";
+            // }
+
             if (OperatingSystem.IsWindows() && !Path.HasExtension(command))
             {
-                // On windows we transform npm/yarn to npm.cmd/yarn.cmd so that the command
-                // can actually be found when we start the process. This is overridable if
-                // necessary by explicitly setting up the extension on the command.
-                command = $"{command}.cmd";
+                var commandWithCmdExtension = $"{command}.cmd";
+                var commandWithExeExtension = $"{command}.exe";
+
+                if (File.Exists(Path.Combine(WorkingDirectory, commandWithCmdExtension)))
+                {
+                    command = commandWithCmdExtension;
+                }
+                else if (File.Exists(Path.Combine(WorkingDirectory, commandWithExeExtension)))
+                {
+                    command = commandWithExeExtension;
+                }
             }
 
             var info = new ProcessStartInfo(command, arguments)
@@ -194,7 +210,7 @@ internal sealed class SpaProxyLaunchManager : IDisposable
                 CreateNoWindow = false,
                 UseShellExecute = true,
                 WindowStyle = ProcessWindowStyle.Normal,
-                WorkingDirectory = Path.Combine(AppContext.BaseDirectory, _options.WorkingDirectory)
+                WorkingDirectory = WorkingDirectory,
             };
             _spaProcess = Process.Start(info);
             if (_spaProcess != null && !_spaProcess.HasExited && !_options.KeepRunning)
